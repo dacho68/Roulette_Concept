@@ -9,7 +9,7 @@ Simulates French Roulette with all standard rules including:
 import random
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
-
+import requests
 
 class BetType(Enum):
     """Types of bets available in French Roulette"""
@@ -402,8 +402,6 @@ def print_spin_status(spin_count: int, bankroll: float, current_bet: float) -> N
     """
     print(f"Spin #{spin_count:3d} | Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
 
-
-
 def run_simulation():
     """
     Run 1000 simulations with the specified betting strategy:
@@ -433,11 +431,23 @@ def run_simulation():
     completed_all_spins = 0
 
     def get_first_bets() -> List[Tuple[BetType, float, List[int]]]:
-        bets = [
+        url="https://www.random.org/integers/?num=1&min=0&max=1&col=1&base=10&format=plain&rnd=new"
+        resp = requests.get(url)
+        random_number = int(resp.text)   
+        if random_number == 0:
+            bets = [
+                (BetType.BLACK, STARTING_BET, [])
+            ]
+        else:
+            bets = [
                 (BetType.RED, STARTING_BET, [])
             ] 
         return bets
     
+    def get_next_bets(current_bet_tuple: Tuple[BetType, float, List[int]], roulette: FrenchRouletteEmulator) -> None:
+        pass
+
+
     print("=== Roulette Betting Strategy Simulation ===")
     print(f"Running {NUM_SIMULATIONS} simulations...")
     print(f"Parameters:")
@@ -446,20 +456,23 @@ def run_simulation():
     print(f"  - Starting bet: ${STARTING_BET:.2f}")
     print(f"  - Bet adjustment: ${BET_ADJUSTMENT:.2f}")
     print(f"  - Bet limits: ${MIN_BET:.2f} - ${MAX_BET:.2f}")
-    print(f"  - Betting on: Red")
+    bets = get_first_bets()  
+    print(f"  - Betting on: {bets[0][0].name}")
     print()
     
     for sim_num in range(NUM_SIMULATIONS):
         roulette = FrenchRouletteEmulator()
         bankroll = STARTING_BANKROLL
-        current_bet = STARTING_BET
+        current_bet_amount = STARTING_BET
         spins_completed = 0
         stop_reason = None
-        first_time = True    
-        bets = get_first_bets()    
+        first_time = True
+        win_count = 0
+        loss_count = 0    
+     
         for spin in range(SPINS_PER_SIMULATION):
             # Check if we have enough money to bet
-            if bankroll < current_bet:
+            if bankroll < current_bet_amount:
                 stop_reason = "bankruptcy"
                 bankruptcies += 1
                 break
@@ -494,9 +507,7 @@ def run_simulation():
             #     bets = [
             #         (BetType.RED, current_bet, [])
             #     ]   
-            
-
-
+        
             
             # Play round
             result, profit = roulette.play_round(bets)
@@ -506,22 +517,22 @@ def run_simulation():
             
             # Adjust bet based on win/loss
             if profit > 0:  # Won
-                new_bet = get_bet_decrease(current_bet)
-                current_bet = round(new_bet, 2)
+                new_bet = get_bet_decrease(current_bet_amount)
+                current_bet_amount = round(new_bet, 2)
                 
                 # Check if bet reached minimum
-                if current_bet <= MIN_BET:
-                    current_bet = MIN_BET
+                if current_bet_amount <= MIN_BET:
+                    current_bet_amount = MIN_BET
                     stop_reason = "min_bet"
                     min_bet_reached += 1
                     break
             else:  # Lost (includes La Partage on zero)
-                new_bet = get_bet_increase(current_bet)
-                current_bet = round(new_bet, 2)
+                new_bet = get_bet_increase(current_bet_amount)
+                current_bet_amount = round(new_bet, 2)
                 
                 # Check if bet reached maximum
-                if current_bet >= MAX_BET:
-                    current_bet = MAX_BET
+                if current_bet_amount >= MAX_BET:
+                    current_bet_amount = MAX_BET
                     stop_reason = "max_bet"
                     max_bet_reached += 1
                     break
@@ -531,7 +542,10 @@ def run_simulation():
         if stop_reason is None:
             stop_reason = "completed"
             completed_all_spins += 1
-        
+
+        if first_time == False:
+            get_next_bets(bets, roulette)
+    
         #print_spin_status(spins_completed, bankroll, current_bet)
         results.append({
             'simulation': sim_num + 1,
