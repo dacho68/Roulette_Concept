@@ -233,7 +233,33 @@ class FrenchRouletteEmulator:
             return 'red'
         else:
             return 'black'
-    
+    def get_number_of_streak_color(self, color: str) -> int:
+        """
+        Get the number of consecutive spins of a given color.
+        
+        Args:
+            color: 'red' or 'black'
+            
+        Returns:
+            Number of consecutive spins of the specified color
+        """
+        count = 0
+        for number in reversed(self.history):
+            if (color == 'red' and number in self.RED_NUMBERS) or \
+               (color == 'black' and number in self.BLACK_NUMBERS):
+                count += 1
+            else:
+                break
+        return count
+
+    def get_odds_streak_color(self, k:int) -> float:
+        """
+        odds = (1/2)^(k +1)
+        Get the odds of getting a streak of k consecutive spins of a given color.   
+        """
+        odds = (18/37) ** (k + 1)
+        return odds
+
     def get_statistics(self) -> Dict:
         """
         Get statistics from spin history.
@@ -254,6 +280,7 @@ class FrenchRouletteEmulator:
             "last_10": self.history[-10:] if len(self.history) >= 10 else self.history,
         }
 
+    
 
 # Example usage
 def demo():
@@ -416,11 +443,11 @@ def run_simulation():
 
     NUM_SIMULATIONS =  1000
     SPINS_PER_SIMULATION = 100
-    STARTING_BANKROLL = 1000.00
+    STARTING_BANKROLL = 100.00
     STARTING_BET = 1.00
     BET_ADJUSTMENT = 0.20
     MIN_BET = 0.10
-    MAX_BET = 7.2
+    MAX_BET = 8
 
     
     # Track results
@@ -511,6 +538,11 @@ def run_simulation():
             
             # Play round
             result, profit = roulette.play_round(bets)
+
+            if profit > 0:
+                win_count += 1
+            else:
+                loss_count += 1
 
             bankroll += profit
             spins_completed += 1
