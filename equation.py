@@ -172,7 +172,7 @@ def plot_results(x_data, y_data, results):
     plt.figure(figsize=(12, 8))
     
     # Plot original data
-    plt.scatter(x_data, y_data, color='red', s=100, zorder=5, label='Actual Data', marker='o')
+    plt.scatter(x_data, y_data, color=BetType.RED, s=100, zorder=5, label='Actual Data', marker='o')
     
     # Generate smooth curve for plotting
     x_smooth = np.linspace(x_data.min(), x_data.max(), 300)

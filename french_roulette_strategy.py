@@ -33,6 +33,7 @@ class BetType(Enum):
     COLUMN_1 = "column_1"  # 1,4,7,10...34
     COLUMN_2 = "column_2"  # 2,5,8,11...35
     COLUMN_3 = "column_3"  # 3,6,9,12...36
+    GREEN = "green"  # Single zero (0)
 
 
 class FrenchRouletteEmulator:
@@ -53,7 +54,7 @@ class FrenchRouletteEmulator:
     # Black numbers (all non-red, non-zero numbers)
     BLACK_NUMBERS = {2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35}
     
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None, random_numbers: Optional[List[int]] = None):
         """
         Initialize the roulette emulator.
         
@@ -63,7 +64,23 @@ class FrenchRouletteEmulator:
         if seed is not None:
             random.seed(seed)
         self.history: List[int] = []
+        self.red_count =  0
+        self.black_count = 0
+        self.zero_count = 0
+        self.random_numbers = random_numbers if random_numbers is not None else []
+        self.random_index = 0
+        self.spin_count = 1
+
+
+    def get_spin_count(self) -> int:
+        """
+        Get the total number of spins played.
         
+        Returns:
+            Total spins count
+        """
+        return self.spin_count          
+
     def spin(self) -> int:
         """
         Spin the roulette wheel.
@@ -71,8 +88,16 @@ class FrenchRouletteEmulator:
         Returns:
             The number that came up (0-36)
         """
-        result = random.choice(self.NUMBERS)
+
+        if self.random_numbers is not None and len(self.random_numbers) > 0:
+            self.random_index   = self.spin_count % len(self.random_numbers)
+            random_number = self.random_numbers[self.random_index]            
+            result = random_number
+        else:
+            result = random.choice(self.NUMBERS)
+    
         self.history.append(result)
+        self.spin_count += 1
         return result
     
     def check_bet(self, bet_type: BetType, bet_numbers: List[int], result: int) -> bool:
@@ -207,7 +232,15 @@ class FrenchRouletteEmulator:
         Returns:
             Tuple of (result number, total net profit/loss)
         """
+
         result = self.spin()
+        if  result in self.RED_NUMBERS:
+            self.red_count += 1
+        elif result in self.BLACK_NUMBERS:
+            self.black_count += 1
+        else:
+            self.zero_count += 1
+
         total_payout = 0
         
         for bet_type, bet_amount, bet_numbers in bets:
@@ -225,28 +258,28 @@ class FrenchRouletteEmulator:
             number: The roulette number
             
         Returns:
-            'red', 'black', or 'green' (for 0)
+            RED, BLACK, or 'green' (for 0)
         """
         if number == 0:
-            return 'green'
+            return BetType.GREEN
         elif number in self.RED_NUMBERS:
-            return 'red'
+            return BetType.RED
         else:
-            return 'black'
+            return BetType.BLACK
     def get_number_of_streak_color(self, color: str) -> int:
         """
         Get the number of consecutive spins of a given color.
         
         Args:
-            color: 'red' or 'black'
+            color: RED or BLACK
             
         Returns:
             Number of consecutive spins of the specified color
         """
         count = 0
         for number in reversed(self.history):
-            if (color == 'red' and number in self.RED_NUMBERS) or \
-               (color == 'black' and number in self.BLACK_NUMBERS):
+            if (color == BetType.RED and number in self.RED_NUMBERS) or \
+               (color == BetType.BLACK and number in self.BLACK_NUMBERS):
                 count += 1
             else:
                 break
@@ -259,6 +292,56 @@ class FrenchRouletteEmulator:
         """
         odds = (18/37) ** (k + 1)
         return odds
+
+    def get_black_red_ratio(self) -> float:
+        """
+        Get the ratio of black to red spins.
+        
+        Returns:
+            Ratio of black spins to red spins
+        """
+        if self.red_count == 0:
+            return float('inf')  # Avoid division by zero
+        return self.black_count / self.red_count
+    
+    def get_red_black_ratio(self) -> float:
+        """
+        Get the ratio of red to black spins.
+        
+        Returns:
+            Ratio of red spins to black spins
+        """
+        if self.black_count == 0:
+            return float('inf')  # Avoid division by zero
+        return self.red_count / self.black_count
+        
+    def get_red_count(self) -> int: 
+        """
+        Get the count of red spins.
+        
+        Returns:
+            Count of red spins
+        """
+        return self.red_count
+    
+    def get_black_count(self) -> int:
+        """
+        Get the count of black spins.
+        
+        Returns:
+            Count of black spins
+        """
+        return self.black_count
+
+    def get_zero_count(self) -> int:
+        """
+        Get the count of zero spins.
+        
+        Returns:
+            Count of zero spins
+        """
+        return self.zero_count
+    
 
     def get_statistics(self) -> Dict:
         """
@@ -279,8 +362,6 @@ class FrenchRouletteEmulator:
             "odd_count": sum(1 for n in self.history if n != 0 and n % 2 == 1),
             "last_10": self.history[-10:] if len(self.history) >= 10 else self.history,
         }
-
-    
 
 # Example usage
 def demo():
@@ -365,6 +446,8 @@ def demo():
     print(f"Zero: {stats['zero_count']} ({stats['zero_count']/stats['total_spins']*100:.1f}%)")
     print(f"Last 10 spins: {stats['last_10']}")
 
+
+
 ADJUSTMENT_TABLE = [
     # min, max, adjustment
     (0.20, 0.90, 0.10),
@@ -372,8 +455,13 @@ ADJUSTMENT_TABLE = [
     (2.00, 3.60, 0.40),
     (4.00, 7.20, 0.80),
     (8.00, 12.80, 1.20),
-    (14.00, 20.00, 2.00),
-]
+    (14.00, 22.00, 2.00),
+    (24.00, 44.00, 4.00),]
+
+ADJUSTMENT_TABLE = [
+    # min, max, adjustment
+    (0.20, 100.00, 0.20),
+    (100.20, 200.00, 0.20),]
 
 BET_ZERO_TABLE = [
     # bet, bet on zero
@@ -418,7 +506,7 @@ def get_bet_decrease(current_bet: float) -> float:
     new_bet = current_bet - prev_adjustment
     return round(new_bet, 2)
 
-def print_spin_status(spin_count: int, bankroll: float, current_bet: float) -> None:
+def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int) -> None:
     """
     Print the current status of a simulation spin.
     
@@ -427,7 +515,9 @@ def print_spin_status(spin_count: int, bankroll: float, current_bet: float) -> N
         bankroll: Current bankroll amount
         current_bet: Current bet amount
     """
+    print(f"Sim {sim_num} | Wins: {win_count:3d} | Losses: {loss_count:3d} | ", end="" )
     print(f"Spin #{spin_count:3d} | Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
+    print("-" * 70)
 
 def run_simulation():
     """
@@ -441,13 +531,17 @@ def run_simulation():
     - Stop if bet reaches $0.20 or $6.00
     """
 
-    NUM_SIMULATIONS =  1000
+    NUM_SIMULATIONS =  50
     SPINS_PER_SIMULATION = 100
-    STARTING_BANKROLL = 100.00
-    STARTING_BET = 1.00
+    STARTING_BANKROLL = 1000.00
+    STARTING_BET = 1.20
     BET_ADJUSTMENT = 0.20
-    MIN_BET = 0.10
-    MAX_BET = 8
+    MIN_BET = 0.20
+    MAX_BET = 48.0
+    SWITCH_RATIO = 1.5
+
+    sim_switch_track = []
+    sim_win_track = []
 
     
     # Track results
@@ -457,11 +551,21 @@ def run_simulation():
     min_bet_reached = 0
     completed_all_spins = 0
 
-    def get_first_bets() -> List[Tuple[BetType, float, List[int]]]:
-        url="https://www.random.org/integers/?num=1&min=0&max=1&col=1&base=10&format=plain&rnd=new"
+    def get_random_numbers() -> List[int]:
+        url="https://www.random.org/integers/?num=201&min=0&max=36&col=10&base=10&format=plain&rnd=new"
         resp = requests.get(url)
-        random_number = int(resp.text)   
-        if random_number == 0:
+        text = resp.text   
+        numbers = []
+        for line in text.strip().split('\n'):
+            numbers.extend([int(num) for num in line.split()])
+
+        import time
+        time.sleep(2)  # To avoid hitting the API rate limit
+        return numbers
+
+
+    def get_first_bets(color) -> List[Tuple[BetType, float, List[int]]]:
+        if color ==  BetType.BLACK:
             bets = [
                 (BetType.BLACK, STARTING_BET, [])
             ]
@@ -471,9 +575,23 @@ def run_simulation():
             ] 
         return bets
     
-    def get_next_bets(current_bet_tuple: Tuple[BetType, float, List[int]], roulette: FrenchRouletteEmulator) -> None:
-        pass
+    def get_next_bets(spins:int, current_bet_tuple: Tuple[BetType, float, List[int]], roulette: FrenchRouletteEmulator) -> Tuple[BetType, float, List[int]]:
+        c_bet_color = current_bet_tuple[0]
+        if c_bet_color == BetType.RED: # red is over shooting
+            if spins >= 10 and roulette.get_red_black_ratio() >= SWITCH_RATIO:
+                new_bet_tuple = (BetType.BLACK, current_bet_tuple[1], []) 
+                print(f"Sim {sim_num} Switching bet to BLACK due to Red dominance at spin {spins}.")
+                sim_switch_track.append(sim_num + 1)
+                return  new_bet_tuple
 
+        if c_bet_color == BetType.BLACK: # black is over shooting
+            if spins >= 10 and roulette.get_black_red_ratio() >= SWITCH_RATIO:
+                new_bet_tuple = (BetType.RED, current_bet_tuple[1], []) 
+                print(f"Sim {sim_num} Switching bet to RED due to Black dominance at spin {spins}.")
+                sim_switch_track.append(sim_num + 1)
+                return  new_bet_tuple
+            
+        return current_bet_tuple
 
     print("=== Roulette Betting Strategy Simulation ===")
     print(f"Running {NUM_SIMULATIONS} simulations...")
@@ -483,19 +601,29 @@ def run_simulation():
     print(f"  - Starting bet: ${STARTING_BET:.2f}")
     print(f"  - Bet adjustment: ${BET_ADJUSTMENT:.2f}")
     print(f"  - Bet limits: ${MIN_BET:.2f} - ${MAX_BET:.2f}")
-    bets = get_first_bets()  
-    print(f"  - Betting on: {bets[0][0].name}")
-    print()
-    
+
+    using_random_org = False
     for sim_num in range(NUM_SIMULATIONS):
-        roulette = FrenchRouletteEmulator()
+        import time
+        current_sec = int(time.time())  # Get current time in microseconds
+        if using_random_org:
+            random_numbers = get_random_numbers()
+        else:
+            random_numbers = [random.randint(0,36) for _ in range(1001)]
+
+        roulette = FrenchRouletteEmulator(seed=current_sec)
+
         bankroll = STARTING_BANKROLL
         current_bet_amount = STARTING_BET
         spins_completed = 0
         stop_reason = None
         first_time = True
         win_count = 0
-        loss_count = 0    
+        loss_count = 0
+        
+        color = roulette.get_color(random_numbers[0])
+        bets = get_first_bets(color)  
+        print(f"Sim {sim_num} - First Betting on: {bets[0][0].name}")
      
         for spin in range(SPINS_PER_SIMULATION):
             # Check if we have enough money to bet
@@ -503,46 +631,18 @@ def run_simulation():
                 stop_reason = "bankruptcy"
                 bankruptcies += 1
                 break
-
-            stats = roulette.get_statistics()
-            if spin >= 32 and stats['red_count'] == stats['black_count'] and bankroll > STARTING_BANKROLL:
-                print(f"Spin {spin}: Equal red and black count stop playing - profit {bankroll - STARTING_BANKROLL:.2f}.")
+            
+            red_count = roulette.get_red_count()
+            black_count = roulette.get_black_count()
+            win_count = roulette.get_red_count()
+            loss_count = roulette.get_black_count()
+            if spin >= 12 and red_count == black_count and bankroll > STARTING_BANKROLL:
+                print(f"Spin {spin}: Equal win and loss count stop playing - profit {bankroll - STARTING_BANKROLL:.2f}.")
                 break
-
-            if spin >= 32 and stats['red_count'] > stats['black_count'] * 1.5 and bankroll > STARTING_BANKROLL:
-                print(f"Spin {spin}: Red dominant stop playing. - profit {bankroll - STARTING_BANKROLL:.2f}.")
-                break
-
-            # if bankroll > STARTING_BANKROLL + 35:
-            #     break
-            # Place bet on Zero if after 30 spins there was no zero
-            # if spin >= 36 and 0 not in roulette.history[-36:]:
-            #     zero_bet_amount = get_zero_bet(current_bet)
-            #     #print(f"Spin {spin}: No zero in last 36 spins, betting on zero. Bet on zero amount: ${zero_bet_amount:.2f}")
-            #     bets = [
-            #         (BetType.RED, current_bet, []),
-            #         (BetType.STRAIGHT, zero_bet_amount, [0])  # Bet on zero
-            #     ]
-            # elif current_bet >= BET_ZERO_TABLE[1][0] :
-            #     zero_bet_amount = get_zero_bet(current_bet)
-            #     #print(f"Spin {spin}: No zero in last 100 spins, betting on zero. Bet on zero amount: ${zero_bet_amount:.2f}")
-            #     bets = [
-            #         (BetType.RED, current_bet, []),
-            #         (BetType.STRAIGHT, zero_bet_amount, [0])  # Bet on zero
-            #     ]   
-            # else:
-            #     bets = [
-            #         (BetType.RED, current_bet, [])
-            #     ]   
-        
             
             # Play round
-            result, profit = roulette.play_round(bets)
 
-            if profit > 0:
-                win_count += 1
-            else:
-                loss_count += 1
+            result, profit = roulette.play_round(bets)
 
             bankroll += profit
             spins_completed += 1
@@ -551,7 +651,10 @@ def run_simulation():
             if profit > 0:  # Won
                 new_bet = get_bet_decrease(current_bet_amount)
                 current_bet_amount = round(new_bet, 2)
-                
+                win_count += 1
+                if first_time == False:
+                    print("Win on spin {}: Result {}, Profit ${:.2f}, New Bet ${:.2f}, Bankroll ${:.2f}".format(
+                        spin + 1, result, profit, current_bet_amount, bankroll))
                 # Check if bet reached minimum
                 if current_bet_amount <= MIN_BET:
                     current_bet_amount = MIN_BET
@@ -561,48 +664,85 @@ def run_simulation():
             else:  # Lost (includes La Partage on zero)
                 new_bet = get_bet_increase(current_bet_amount)
                 current_bet_amount = round(new_bet, 2)
-                
+                loss_count += 1
                 # Check if bet reached maximum
-                if current_bet_amount >= MAX_BET:
+                if current_bet_amount >= MAX_BET : #and  (loss_count/(win_count +1) ) < 1.2:
                     current_bet_amount = MAX_BET
                     stop_reason = "max_bet"
                     max_bet_reached += 1
                     break
-        
+                
+            #end of spins loop
 
         # Check if completed all spins
         if stop_reason is None:
             stop_reason = "completed"
             completed_all_spins += 1
 
+
+        first_time = False
         if first_time == False:
-            get_next_bets(bets, roulette)
+            bets = [get_next_bets(spin, bets[0], roulette)]
     
+        profit_loss = bankroll - STARTING_BANKROLL
+
+        if profit_loss > 0:
+            sim_win_track.append(sim_num + 1)
+
+        import pandas as pd
         #print_spin_status(spins_completed, bankroll, current_bet)
         results.append({
             'simulation': sim_num + 1,
             'final_bankroll': bankroll,
-            'profit_loss': bankroll - STARTING_BANKROLL,
+            'profit_loss': profit_loss,
             'spins_completed': spins_completed,
-            'stop_reason': stop_reason
+            'stop_reason': stop_reason,
+            'win_count': win_count,
+            'loss_count': loss_count
         })
-        
+        print_spin_status( sim_num, spins_completed, bankroll, current_bet_amount,win_count,loss_count)
         # Print progress every 100 simulations
         if (sim_num + 1) % 100 == 0:
             print(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
 
-        first_time = False
-    
+        # end of simulation loop
+
+
+    sim_switch_track = list(set(sim_switch_track))
+    sim_switch_track.sort()
+
     print("\n=== Simulation Results ===\n")
     
-    # Calculate statistics
-    final_bankrolls = [r['final_bankroll'] for r in results]
-    profit_losses = [r['profit_loss'] for r in results]
-    spins_completed_list = [r['spins_completed'] for r in results]
+    # Print switch and win ratios
+    print(f"Simulations that switched bets: {len(sim_switch_track)} ({len(sim_switch_track)/NUM_SIMULATIONS*100:.1f}%)")
+    print(f"Simulations that won: {len(sim_win_track)} ({len(sim_win_track)/NUM_SIMULATIONS*100:.1f}%)")
     
-    avg_final_bankroll = sum(final_bankrolls) / len(final_bankrolls)
-    avg_profit_loss = sum(profit_losses) / len(profit_losses)
-    avg_spins = sum(spins_completed_list) / len(spins_completed_list)
+    # Calculate overlap between switch and win
+    switch_and_win = len(set(sim_switch_track) & set(sim_win_track))
+    print(f"Simulations that both switched and won: {switch_and_win}")
+    if len(sim_switch_track) > 0:
+        print(f"  - Of simulations that switched, {switch_and_win/len(sim_switch_track)*100:.1f}% won")
+    if len(sim_win_track) > 0:
+        print(f"  - Of simulations that won, {switch_and_win/len(sim_win_track)*100:.1f}% had switched")
+    print()
+
+    # Calculate statistics
+
+    profit_losses = [r['profit_loss'] for r in results]
+
+    df = pd.DataFrame([{
+        'final_bankroll': r['final_bankroll'],
+        'profit_loss': r['profit_loss'],
+        'spins_completed': r['spins_completed'],
+        'win_count': r['win_count'],
+        'loss_count': r['loss_count']
+    } for r in results])
+    
+    print(df.describe())
+    print()
+ 
+    print(f"Win Count - Median: {df['win_count'].median()}, Mean: {df['win_count'].mean():.2f}")
+    print()
     
     winning_simulations = sum(1 for p in profit_losses if p > 0)
     losing_simulations = sum(1 for p in profit_losses if p < 0)
@@ -615,9 +755,9 @@ def run_simulation():
     worst_sim = results[profit_losses.index(max_loss)]
     
     # Print summary statistics
-    print(f"Average Final Bankroll: ${avg_final_bankroll:.2f}")
-    print(f"Average Profit/Loss: ${avg_profit_loss:.2f}")
-    print(f"Average Spins Completed: {avg_spins:.1f}")
+    print(f"Average Final Bankroll: ${df['final_bankroll'].mean():.2f}")
+    print(f"Average Profit/Loss: ${df['profit_loss'].mean():.2f}")
+    print(f"Average Spins Completed: {df['spins_completed'].mean():.1f}")
     print()
     
     print(f"Winning Simulations: {winning_simulations} ({winning_simulations/NUM_SIMULATIONS*100:.1f}%)")

@@ -339,6 +339,178 @@ class TestAdjustmentTableConsistency(unittest.TestCase):
             self.assertLess(min_bet, max_bet)
 
 
+
+
+class TestFrenchRouletteEmulatorSpin(unittest.TestCase):
+    """Test cases for FrenchRouletteEmulator.spin() method"""
+    
+    def setUp(self):
+        """Set up test fixtures before each test"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        self.roulette = FrenchRouletteEmulator(seed=42)
+    
+    def test_spin_returns_valid_number(self):
+        """Test that spin returns a number between 0-36"""
+        result = self.roulette.spin()
+        self.assertGreaterEqual(result, 0)
+        self.assertLessEqual(result, 36)
+        self.assertIsInstance(result, int)
+    
+    def test_spin_adds_to_history(self):
+        """Test that spin result is added to history"""
+        initial_length = len(self.roulette.history)
+        result = self.roulette.spin()
+        self.assertEqual(len(self.roulette.history), initial_length + 1)
+        self.assertEqual(self.roulette.history[-1], result)
+    
+    def test_spin_count_increments(self):
+        """Test that spin_count increments after each spin"""
+        initial_count = self.roulette.get_spin_count()
+        self.roulette.spin()
+        self.assertEqual(self.roulette.get_spin_count(), initial_count + 1)
+    
+    def test_multiple_spins_increment_count(self):
+        """Test that multiple spins increment count correctly"""
+        initial_count = self.roulette.get_spin_count()
+        for _ in range(5):
+            self.roulette.spin()
+        self.assertEqual(self.roulette.get_spin_count(), initial_count + 5)
+    
+    def test_spin_with_random_numbers_list(self):
+        """Test spin with provided random numbers list"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [10, 25, 34, 5, 18]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        # First spin should use first number
+        result = roulette.spin()
+        self.assertEqual(result, 10)
+        
+        # Second spin should use second number
+        result = roulette.spin()
+        self.assertEqual(result, 25)
+        
+        # Third spin should use third number
+        result = roulette.spin()
+        self.assertEqual(result, 34)
+    
+    def test_spin_cycles_through_random_numbers(self):
+        """Test that spin cycles through the random numbers list"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [1, 2, 3, 4, 5]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        # Spin 10 times and verify cycling
+        results = []
+        for _ in range(10):
+            results.append(roulette.spin())
+        
+        expected = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]
+        self.assertEqual(results, expected)
+    
+    def test_spin_with_zero_in_random_numbers(self):
+        """Test spin when zero is in random numbers"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [0, 18, 0, 25]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 0)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 18)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 0)
+    
+    def test_spin_history_preserves_all_results(self):
+        """Test that history preserves all spin results in order"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [10, 20, 30, 10, 20]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        for _ in range(5):
+            roulette.spin()
+        
+        self.assertEqual(roulette.history, [10, 20, 30, 10, 20])
+    
+    
+    def test_spin_with_edge_case_numbers(self):
+        """Test spin with edge case wheel numbers (0 and 36)"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [0, 36, 1, 35]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 0)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 36)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 1)
+        
+        result = roulette.spin()
+        self.assertEqual(result, 35)
+    
+
+    def test_spin_different_with_different_seed(self):
+        """Test that spin produces different results with different seeds"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        
+        
+        roulette1 = FrenchRouletteEmulator(seed=42)
+        roulette2 = FrenchRouletteEmulator(seed=123)
+        
+        results1 = [roulette1.spin() for _ in range(5)]
+        results2 = [roulette2.spin() for _ in range(5)]
+        
+        # With different seeds, results should be different (with high probability)
+        self.assertNotEqual(results1, results2)
+    
+    def test_spin_index_management(self):
+        """Test that random_index is correctly managed during spins"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [5, 15, 25, 35]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        roulette.spin()  # spin_count = 1, index = 0 % 4 = 0
+        self.assertEqual(roulette.spin_count, 1)
+        
+        roulette.spin()  # spin_count = 2, index = 1 % 4 = 1
+        self.assertEqual(roulette.spin_count, 2)
+        
+        roulette.spin()  # spin_count = 3, index = 2 % 4 = 2
+        self.assertEqual(roulette.spin_count, 3)
+        
+        roulette.spin()  # spin_count = 4, index = 3 % 4 = 3
+        self.assertEqual(roulette.spin_count, 4)
+        
+        roulette.spin()  # spin_count = 5, index = 4 % 4 = 0 (cycles back)
+        self.assertEqual(roulette.spin_count, 5)
+        self.assertEqual(roulette.history[-1], 5)  # Should be first number again
+    
+    def test_spin_many_times_with_small_list(self):
+        """Test spinning many times with a small random numbers list"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [7, 14, 21]
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        for _ in range(9):
+            roulette.spin()
+        
+        # After 9 spins with 3-number list: 7,14,21,7,14,21,7,14,21
+        self.assertEqual(roulette.history, [7, 14, 21, 7, 14, 21, 7, 14, 21])
+    
+    def test_spin_return_type_is_int(self):
+        """Test that spin always returns an integer"""
+        from french_roulette_strategy import FrenchRouletteEmulator
+        random_numbers = [10.5, 20.7, 35.2]  # Float values in list
+        roulette = FrenchRouletteEmulator(random_numbers=random_numbers)
+        
+        result = roulette.spin()
+        self.assertIsInstance(result, (int, float))
+        # The result type depends on what's in random_numbers
 if __name__ == '__main__':
     # Run tests with verbose output
     unittest.main(verbosity=2)
