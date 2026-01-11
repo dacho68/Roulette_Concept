@@ -506,7 +506,7 @@ def get_bet_decrease(current_bet: float) -> float:
     new_bet = current_bet - prev_adjustment
     return round(new_bet, 2)
 
-def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int) -> None:
+def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int, red_count: int, black_count: int) -> None:
     """
     Print the current status of a simulation spin.
     
@@ -514,10 +514,12 @@ def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_be
         spin_count: Current spin number
         bankroll: Current bankroll amount
         current_bet: Current bet amount
+        red_count: Count of red spins
+        black_count: Count of black spins
     """
-    print(f"Sim {sim_num} | Wins: {win_count:3d} | Losses: {loss_count:3d} | ", end="" )
-    print(f"Spin #{spin_count:3d} | Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
-    print("-" * 70)
+    print(f"Sim {sim_num} | Spin #{spin_count:3d} | Wins: {win_count:3d} | Losses: {loss_count:3d} | Red: {red_count:3d} | Black: {black_count:3d} | ", end="" )
+    print(f"Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
+    print("-" * 90)
 
 def run_simulation():
     """
@@ -531,13 +533,13 @@ def run_simulation():
     - Stop if bet reaches $0.20 or $6.00
     """
 
-    NUM_SIMULATIONS =  50
-    SPINS_PER_SIMULATION = 100
+    NUM_SIMULATIONS =  2
+    SPINS_PER_SIMULATION = 120
     STARTING_BANKROLL = 1000.00
     STARTING_BET = 1.20
     BET_ADJUSTMENT = 0.20
     MIN_BET = 0.20
-    MAX_BET = 48.0
+    MAX_BET = 8.00
     SWITCH_RATIO = 1.5
 
     sim_switch_track = []
@@ -634,8 +636,7 @@ def run_simulation():
             
             red_count = roulette.get_red_count()
             black_count = roulette.get_black_count()
-            win_count = roulette.get_red_count()
-            loss_count = roulette.get_black_count()
+
             if spin >= 12 and red_count == black_count and bankroll > STARTING_BANKROLL:
                 print(f"Spin {spin}: Equal win and loss count stop playing - profit {bankroll - STARTING_BANKROLL:.2f}.")
                 break
@@ -671,7 +672,8 @@ def run_simulation():
                     stop_reason = "max_bet"
                     max_bet_reached += 1
                     break
-                
+
+            print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count())    
             #end of spins loop
 
         # Check if completed all spins
@@ -700,7 +702,7 @@ def run_simulation():
             'win_count': win_count,
             'loss_count': loss_count
         })
-        print_spin_status( sim_num, spins_completed, bankroll, current_bet_amount,win_count,loss_count)
+        print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count())
         # Print progress every 100 simulations
         if (sim_num + 1) % 100 == 0:
             print(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
