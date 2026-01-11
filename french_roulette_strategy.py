@@ -99,6 +99,17 @@ class FrenchRouletteEmulator:
         self.history.append(result)
         self.spin_count += 1
         return result
+
+    def get_last_result(self) -> Optional[int]:
+        """
+        Get the last spin result.
+        
+        Returns:
+            The last number that came up, or None if no spins yet
+        """
+        if not self.history:
+            return None
+        return self.history[-1]         
     
     def check_bet(self, bet_type: BetType, bet_numbers: List[int], result: int) -> bool:
         """
@@ -506,7 +517,7 @@ def get_bet_decrease(current_bet: float) -> float:
     new_bet = current_bet - prev_adjustment
     return round(new_bet, 2)
 
-def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int, red_count: int, black_count: int) -> None:
+def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int, red_count: int, black_count: int, last_result: Optional[int] = None) -> None:
     """
     Print the current status of a simulation spin.
     
@@ -516,10 +527,12 @@ def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_be
         current_bet: Current bet amount
         red_count: Count of red spins
         black_count: Count of black spins
+        last_result: The last spin result number
     """
-    print(f"Sim {sim_num} | Spin #{spin_count:3d} | Wins: {win_count:3d} | Losses: {loss_count:3d} | Red: {red_count:3d} | Black: {black_count:3d} | ", end="" )
+    last_result_str = f" | Last: {last_result}" if last_result is not None else ""
+    print(f"Sim {sim_num} | Spin #{spin_count:3d} | Wins: {win_count:3d} | Losses: {loss_count:3d} | Red: {red_count:3d} | Black: {black_count:3d}{last_result_str} | ", end="" )
     print(f"Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
-    print("-" * 90)
+    print("-" * 100)
 
 def run_simulation():
     """
@@ -533,7 +546,7 @@ def run_simulation():
     - Stop if bet reaches $0.20 or $6.00
     """
 
-    NUM_SIMULATIONS =  2
+    NUM_SIMULATIONS =  10
     SPINS_PER_SIMULATION = 120
     STARTING_BANKROLL = 1000.00
     STARTING_BET = 1.20
@@ -627,13 +640,22 @@ def run_simulation():
         bets = get_first_bets(color)  
         print(f"Sim {sim_num} - First Betting on: {bets[0][0].name}")
      
-        for spin in range(SPINS_PER_SIMULATION):
+        spin = 0
+        while stop_reason is None:
             # Check if we have enough money to bet
             if bankroll < current_bet_amount:
                 stop_reason = "bankruptcy"
                 bankruptcies += 1
                 break
             
+            if spin >= SPINS_PER_SIMULATION and bankroll - STARTING_BANKROLL > 6.00:
+                stop_reason = "end_stop_profit"
+                break
+
+            if spin >= SPINS_PER_SIMULATION and win_count > loss_count :
+                stop_reason = "ext_stop_profit"
+                break
+
             red_count = roulette.get_red_count()
             black_count = roulette.get_black_count()
 
@@ -672,8 +694,8 @@ def run_simulation():
                     stop_reason = "max_bet"
                     max_bet_reached += 1
                     break
-
-            print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count())    
+            spin += 1
+            print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count(), roulette.get_last_result())    
             #end of spins loop
 
         # Check if completed all spins
@@ -702,13 +724,14 @@ def run_simulation():
             'win_count': win_count,
             'loss_count': loss_count
         })
-        print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count())
+        print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount,
+                           win_count, loss_count, roulette.get_red_count(), roulette.get_black_count(), roulette.get_last_result())
         # Print progress every 100 simulations
         if (sim_num + 1) % 100 == 0:
             print(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
 
         # end of simulation loop
-
+    print(f"======> {stop_reason}")
 
     sim_switch_track = list(set(sim_switch_track))
     sim_switch_track.sort()
