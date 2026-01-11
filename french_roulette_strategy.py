@@ -471,8 +471,11 @@ ADJUSTMENT_TABLE = [
 
 ADJUSTMENT_TABLE = [
     # min, max, adjustment
-    (0.20, 100.00, 0.20),
-    (100.20, 200.00, 0.20),]
+    (0.20, 3.80, 0.20),
+    (4.00, 7.60, 0.40),
+    (8.00, 12.50, 0.50),
+    
+    ]
 
 BET_ZERO_TABLE = [
     # bet, bet on zero
@@ -661,6 +664,7 @@ def run_simulation():
 
             if spin >= 12 and red_count == black_count and bankroll > STARTING_BANKROLL:
                 print(f"Spin {spin}: Equal win and loss count stop playing - profit {bankroll - STARTING_BANKROLL:.2f}.")
+                stop_reason = "equal_red_black_stop"
                 break
             
             # Play round
@@ -729,9 +733,9 @@ def run_simulation():
         # Print progress every 100 simulations
         if (sim_num + 1) % 100 == 0:
             print(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
-
+        print(f"======> {stop_reason}")
         # end of simulation loop
-    print(f"======> {stop_reason}")
+
 
     sim_switch_track = list(set(sim_switch_track))
     sim_switch_track.sort()
