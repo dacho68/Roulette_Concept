@@ -7,9 +7,30 @@ Simulates French Roulette with all standard rules including:
 """
 
 import random
+import logging
 from enum import Enum
 from typing import List, Dict, Tuple, Optional
 import requests
+
+import time
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create formatters
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# Create console handler
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # Create file handler
+    file_handler = logging.FileHandler('roulette_simulation.log')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 class BetType(Enum):
     """Types of bets available in French Roulette"""
@@ -376,7 +397,7 @@ class FrenchRouletteEmulator:
 
 # Example usage
 def demo():
-    print("=== French Roulette Emulator Demo ===\n")
+    logger.info("=== French Roulette Emulator Demo ===\n")
     
     # Create emulator instance
     import time
@@ -384,49 +405,49 @@ def demo():
     roulette = FrenchRouletteEmulator(seed=current_sec)
     
     # Example 1: Simple single bet
-    print("Example 1: Betting $10 on Red")
+    logger.info("Example 1: Betting $10 on Red")
     result, profit = roulette.play_round([
         (BetType.RED, 10, [])
     ])
     color = roulette.get_color(result)
-    print(f"Result: {result} ({color})")
-    print(f"Profit/Loss: ${profit:.2f}\n")
+    logger.info(f"Result: {result} ({color})")
+    logger.info(f"Profit/Loss: ${profit:.2f}\n")
     
     # Example 2: Multiple bets in one round
-    print("Example 2: Multiple bets")
-    print("- $5 on Black")
-    print("- $10 on number 17 (straight)")
-    print("- $20 on first dozen (1-12)")
+    logger.info("Example 2: Multiple bets")
+    logger.info("- $5 on Black")
+    logger.info("- $10 on number 17 (straight)")
+    logger.info("- $20 on first dozen (1-12)")
     result, profit = roulette.play_round([
         (BetType.BLACK, 5, []),
         (BetType.STRAIGHT, 10, [17]),
         (BetType.DOZEN_1, 20, [])
     ])
     color = roulette.get_color(result)
-    print(f"Result: {result} ({color})")
-    print(f"Total Profit/Loss: ${profit:.2f}\n")
+    logger.info(f"Result: {result} ({color})")
+    logger.info(f"Total Profit/Loss: ${profit:.2f}\n")
     
     # Example 3: Demonstrating La Partage rule
-    print("Example 3: La Partage Rule (when 0 hits on even money bet)")
+    logger.info("Example 3: La Partage Rule (when 0 hits on even money bet)")
     # Force a zero for demonstration
     roulette.history.append(0)
     result = 0
     profit = roulette.calculate_payout(BetType.RED, 100, [], result, la_partage=True)
-    print(f"Bet: $100 on Red")
-    print(f"Result: 0 (green)")
-    print(f"With La Partage: Lose ${-profit:.2f} (only half)")
+    logger.info(f"Bet: $100 on Red")
+    logger.info(f"Result: 0 (green)")
+    logger.info(f"With La Partage: Lose ${-profit:.2f} (only half)")
     profit_without = roulette.calculate_payout(BetType.RED, 100, [], result, la_partage=False)
-    print(f"Without La Partage: Lose ${-profit_without:.2f} (full amount)\n")
+    logger.info(f"Without La Partage: Lose ${-profit_without:.2f} (full amount)\n")
     
     # Example 4: Strategy simulation
-    print("Example 4: Simple Martingale Strategy on Red (10 spins)")
+    logger.info("Example 4: Simple Martingale Strategy on Red (10 spins)")
     bankroll = 1000
     base_bet = 10
     current_bet = base_bet
     wins = 0
     losses = 0
     
-    print(f"Starting Bankroll: ${bankroll:.2f}\n")
+    logger.info(f"Starting Bankroll: ${bankroll:.2f}\n")
     
     for i in range(10):
         result, profit = roulette.play_round([
@@ -436,26 +457,26 @@ def demo():
         color = roulette.get_color(result)
         
         if profit > 0:
-            print(f"Spin {i+1}: {result} ({color}) - Bet: ${current_bet:.2f} - WIN ${profit:.2f} - Bankroll: ${bankroll:.2f}")
+            logger.info(f"Spin {i+1}: {result} ({color}) - Bet: ${current_bet:.2f} - WIN ${profit:.2f} - Bankroll: ${bankroll:.2f}")
             current_bet = base_bet  # Reset to base bet after win
             wins += 1
         else:
-            print(f"Spin {i+1}: {result} ({color}) - Bet: ${current_bet:.2f} - LOSS ${profit:.2f} - Bankroll: ${bankroll:.2f}")
+            logger.info(f"Spin {i+1}: {result} ({color}) - Bet: ${current_bet:.2f} - LOSS ${profit:.2f} - Bankroll: ${bankroll:.2f}")
             current_bet = min(current_bet * 2, bankroll)  # Double bet, but not more than bankroll
             losses += 1
     
-    print(f"\nFinal Bankroll: ${bankroll:.2f}")
-    print(f"Net Profit/Loss: ${bankroll - 1000:.2f}")
-    print(f"Wins: {wins}, Losses: {losses}\n")
+    logger.info(f"\nFinal Bankroll: ${bankroll:.2f}")
+    logger.info(f"Net Profit/Loss: ${bankroll - 1000:.2f}")
+    logger.info(f"Wins: {wins}, Losses: {losses}\n")
     
     # Example 5: Statistics
-    print("Example 5: Spin Statistics")
+    logger.info("Example 5: Spin Statistics")
     stats = roulette.get_statistics()
-    print(f"Total Spins: {stats['total_spins']}")
-    print(f"Red: {stats['red_count']} ({stats['red_count']/stats['total_spins']*100:.1f}%)")
-    print(f"Black: {stats['black_count']} ({stats['black_count']/stats['total_spins']*100:.1f}%)")
-    print(f"Zero: {stats['zero_count']} ({stats['zero_count']/stats['total_spins']*100:.1f}%)")
-    print(f"Last 10 spins: {stats['last_10']}")
+    logger.info(f"Total Spins: {stats['total_spins']}")
+    logger.info(f"Red: {stats['red_count']} ({stats['red_count']/stats['total_spins']*100:.1f}%)")
+    logger.info(f"Black: {stats['black_count']} ({stats['black_count']/stats['total_spins']*100:.1f}%)")
+    logger.info(f"Zero: {stats['zero_count']} ({stats['zero_count']/stats['total_spins']*100:.1f}%)")
+    logger.info(f"Last 10 spins: {stats['last_10']}")
 
 
 
@@ -520,7 +541,7 @@ def get_bet_decrease(current_bet: float) -> float:
     new_bet = current_bet - prev_adjustment
     return round(new_bet, 2)
 
-def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int, red_count: int, black_count: int, last_result: Optional[int] = None) -> None:
+def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_bet: float, win_count: int, loss_count: int, red_count: int, black_count: int, last_result: Optional[int] = None, prev_bet: float = 0.0) -> None:
     """
     Print the current status of a simulation spin.
     
@@ -531,11 +552,12 @@ def print_spin_status(sim_num: int, spin_count: int, bankroll: float, current_be
         red_count: Count of red spins
         black_count: Count of black spins
         last_result: The last spin result number
+        prev_bet: The previous bet amount
     """
     last_result_str = f" | Last: {last_result}" if last_result is not None else ""
-    print(f"Sim {sim_num} | Spin #{spin_count:3d} | Wins: {win_count:3d} | Losses: {loss_count:3d} | Red: {red_count:3d} | Black: {black_count:3d}{last_result_str} | ", end="" )
-    print(f"Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
-    print("-" * 100)
+    prev_bet_str = f" | Prev Bet: ${prev_bet:5.2f}" if prev_bet > 0 else ""
+    logger.info(f"Sim {sim_num} | Spin #{spin_count:3d} | Wins: {win_count:3d} | Losses: {loss_count:3d} | Red: {red_count:3d} | Black: {black_count:3d}{last_result_str}{prev_bet_str} | Bankroll: ${bankroll:8.2f} | Current Bet: ${current_bet:5.2f}")
+
 
 def run_simulation():
     """
@@ -576,9 +598,6 @@ def run_simulation():
         numbers = []
         for line in text.strip().split('\n'):
             numbers.extend([int(num) for num in line.split()])
-
-        import time
-        time.sleep(2)  # To avoid hitting the API rate limit
         return numbers
 
 
@@ -593,32 +612,32 @@ def run_simulation():
             ] 
         return bets
     
-    def get_next_bets(spins:int, current_bet_tuple: Tuple[BetType, float, List[int]], roulette: FrenchRouletteEmulator) -> Tuple[BetType, float, List[int]]:
-        c_bet_color = current_bet_tuple[0]
+    def get_next_color_bet(spins:int, new_bet_tuple: Tuple[BetType, float, List[int]], roulette: FrenchRouletteEmulator) -> Tuple[BetType, float, List[int]]:
+        c_bet_color = new_bet_tuple[0]
         if c_bet_color == BetType.RED: # red is over shooting
             if spins >= 10 and roulette.get_red_black_ratio() >= SWITCH_RATIO:
-                new_bet_tuple = (BetType.BLACK, current_bet_tuple[1], []) 
-                print(f"Sim {sim_num} Switching bet to BLACK due to Red dominance at spin {spins}.")
+                new_bet_tuple = (BetType.BLACK, new_bet_tuple[1], []) 
+                logger.info(f"Sim {sim_num} Switching bet to BLACK due to Red dominance at spin {spins}.")
                 sim_switch_track.append(sim_num + 1)
                 return  new_bet_tuple
 
         if c_bet_color == BetType.BLACK: # black is over shooting
             if spins >= 10 and roulette.get_black_red_ratio() >= SWITCH_RATIO:
-                new_bet_tuple = (BetType.RED, current_bet_tuple[1], []) 
-                print(f"Sim {sim_num} Switching bet to RED due to Black dominance at spin {spins}.")
+                new_bet_tuple = (BetType.RED, new_bet_tuple[1], []) 
+                logger.info(f"Sim {sim_num} Switching bet to RED due to Black dominance at spin {spins}.")
                 sim_switch_track.append(sim_num + 1)
                 return  new_bet_tuple
             
-        return current_bet_tuple
+        return new_bet_tuple
 
-    print("=== Roulette Betting Strategy Simulation ===")
-    print(f"Running {NUM_SIMULATIONS} simulations...")
-    print(f"Parameters:")
-    print(f"  - Spins per simulation: {SPINS_PER_SIMULATION}")
-    print(f"  - Starting bankroll: ${STARTING_BANKROLL:.2f}")
-    print(f"  - Starting bet: ${STARTING_BET:.2f}")
-    print(f"  - Bet adjustment: ${BET_ADJUSTMENT:.2f}")
-    print(f"  - Bet limits: ${MIN_BET:.2f} - ${MAX_BET:.2f}")
+    logger.info("=== Roulette Betting Strategy Simulation ===")
+    logger.info(f"Running {NUM_SIMULATIONS} simulations...")
+    logger.info(f"Parameters:")
+    logger.info(f"  - Spins per simulation: {SPINS_PER_SIMULATION}")
+    logger.info(f"  - Starting bankroll: ${STARTING_BANKROLL:.2f}")
+    logger.info(f"  - Starting bet: ${STARTING_BET:.2f}")
+    logger.info(f"  - Bet adjustment: ${BET_ADJUSTMENT:.2f}")
+    logger.info(f"  - Bet limits: ${MIN_BET:.2f} - ${MAX_BET:.2f}")
 
     using_random_org = False
     for sim_num in range(NUM_SIMULATIONS):
@@ -628,6 +647,9 @@ def run_simulation():
             random_numbers = get_random_numbers()
         else:
             random_numbers = [random.randint(0,36) for _ in range(1001)]
+
+
+        time.sleep(2)  # To avoid hitting the API rate limit
 
         roulette = FrenchRouletteEmulator(seed=current_sec)
 
@@ -641,7 +663,7 @@ def run_simulation():
         
         color = roulette.get_color(random_numbers[0])
         bets = get_first_bets(color)  
-        print(f"Sim {sim_num} - First Betting on: {bets[0][0].name}")
+        logger.info(f"Sim {sim_num} - First Betting on: {bets[0][0].name}")
      
         spin = 0
         while stop_reason is None:
@@ -661,9 +683,8 @@ def run_simulation():
 
             red_count = roulette.get_red_count()
             black_count = roulette.get_black_count()
-
             if spin >= 12 and red_count == black_count and bankroll > STARTING_BANKROLL:
-                print(f"Spin {spin}: Equal win and loss count stop playing - profit {bankroll - STARTING_BANKROLL:.2f}.")
+                logger.info(f"Spin {spin}: Equal win and loss count stop playing - profit {bankroll - STARTING_BANKROLL:.2f}.")
                 stop_reason = "equal_red_black_stop"
                 break
             
@@ -675,12 +696,13 @@ def run_simulation():
             spins_completed += 1
             
             # Adjust bet based on win/loss
+            prev_bet_amount = current_bet_amount
             if profit > 0:  # Won
-                new_bet = get_bet_decrease(current_bet_amount)
-                current_bet_amount = round(new_bet, 2)
+                new_bet_amount = get_bet_decrease(current_bet_amount)
+                current_bet_amount = round(new_bet_amount, 2)
                 win_count += 1
                 if first_time == False:
-                    print("Win on spin {}: Result {}, Profit ${:.2f}, New Bet ${:.2f}, Bankroll ${:.2f}".format(
+                    logger.info("Win on spin {}: Result {}, Profit ${:.2f}, New Bet ${:.2f}, Bankroll ${:.2f}".format(
                         spin + 1, result, profit, current_bet_amount, bankroll))
                 # Check if bet reached minimum
                 if current_bet_amount <= MIN_BET:
@@ -689,8 +711,8 @@ def run_simulation():
                     min_bet_reached += 1
                     break
             else:  # Lost (includes La Partage on zero)
-                new_bet = get_bet_increase(current_bet_amount)
-                current_bet_amount = round(new_bet, 2)
+                new_bet_amount = get_bet_increase(current_bet_amount)
+                current_bet_amount = round(new_bet_amount, 2)
                 loss_count += 1
                 # Check if bet reached maximum
                 if current_bet_amount >= MAX_BET : #and  (loss_count/(win_count +1) ) < 1.2:
@@ -699,7 +721,11 @@ def run_simulation():
                     max_bet_reached += 1
                     break
             spin += 1
-            print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count(), roulette.get_last_result())    
+            print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount, win_count, loss_count, roulette.get_red_count(), roulette.get_black_count(), roulette.get_last_result(), prev_bet_amount)    
+            first_time = False
+            if first_time == False:
+                current_bet_amount = round(new_bet_amount, 2)
+                bets = [get_next_color_bet(spin, (bets[0][0],new_bet_amount, [])  , roulette)]
             #end of spins loop
 
         # Check if completed all spins
@@ -707,10 +733,6 @@ def run_simulation():
             stop_reason = "completed"
             completed_all_spins += 1
 
-
-        first_time = False
-        if first_time == False:
-            bets = [get_next_bets(spin, bets[0], roulette)]
     
         profit_loss = bankroll - STARTING_BANKROLL
 
@@ -729,31 +751,31 @@ def run_simulation():
             'loss_count': loss_count
         })
         print_spin_status(sim_num, spins_completed, bankroll, current_bet_amount,
-                           win_count, loss_count, roulette.get_red_count(), roulette.get_black_count(), roulette.get_last_result())
+                           win_count, loss_count, roulette.get_red_count(), roulette.get_black_count(), roulette.get_last_result(), current_bet_amount)
         # Print progress every 100 simulations
         if (sim_num + 1) % 100 == 0:
-            print(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
-        print(f"======> {stop_reason}")
+            logger.info(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
+        logger.info(f"======> {stop_reason}")
         # end of simulation loop
-
+        logger.info("-" * 120)
 
     sim_switch_track = list(set(sim_switch_track))
     sim_switch_track.sort()
 
-    print("\n=== Simulation Results ===\n")
+    logger.info("\n=== Simulation Results ===\n")
     
     # Print switch and win ratios
-    print(f"Simulations that switched bets: {len(sim_switch_track)} ({len(sim_switch_track)/NUM_SIMULATIONS*100:.1f}%)")
-    print(f"Simulations that won: {len(sim_win_track)} ({len(sim_win_track)/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"Simulations that switched bets: {len(sim_switch_track)} ({len(sim_switch_track)/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"Simulations that won: {len(sim_win_track)} ({len(sim_win_track)/NUM_SIMULATIONS*100:.1f}%)")
     
     # Calculate overlap between switch and win
     switch_and_win = len(set(sim_switch_track) & set(sim_win_track))
-    print(f"Simulations that both switched and won: {switch_and_win}")
+    logger.info(f"Simulations that both switched and won: {switch_and_win}")
     if len(sim_switch_track) > 0:
-        print(f"  - Of simulations that switched, {switch_and_win/len(sim_switch_track)*100:.1f}% won")
+        logger.info(f"  - Of simulations that switched, {switch_and_win/len(sim_switch_track)*100:.1f}% won")
     if len(sim_win_track) > 0:
-        print(f"  - Of simulations that won, {switch_and_win/len(sim_win_track)*100:.1f}% had switched")
-    print()
+        logger.info(f"  - Of simulations that won, {switch_and_win/len(sim_win_track)*100:.1f}% had switched")
+    logger.info("")
 
     # Calculate statistics
 
@@ -767,11 +789,11 @@ def run_simulation():
         'loss_count': r['loss_count']
     } for r in results])
     
-    print(df.describe())
-    print()
+    logger.info(df.describe())
+    logger.info("")
  
-    print(f"Win Count - Median: {df['win_count'].median()}, Mean: {df['win_count'].mean():.2f}")
-    print()
+    logger.info(f"Win Count - Median: {df['win_count'].median()}, Mean: {df['win_count'].mean():.2f}")
+    logger.info("")
     
     winning_simulations = sum(1 for p in profit_losses if p > 0)
     losing_simulations = sum(1 for p in profit_losses if p < 0)
@@ -784,29 +806,29 @@ def run_simulation():
     worst_sim = results[profit_losses.index(max_loss)]
     
     # Print summary statistics
-    print(f"Average Final Bankroll: ${df['final_bankroll'].mean():.2f}")
-    print(f"Average Profit/Loss: ${df['profit_loss'].mean():.2f}")
-    print(f"Average Spins Completed: {df['spins_completed'].mean():.1f}")
-    print()
+    logger.info(f"Average Final Bankroll: ${df['final_bankroll'].mean():.2f}")
+    logger.info(f"Average Profit/Loss: ${df['profit_loss'].mean():.2f}")
+    logger.info(f"Average Spins Completed: {df['spins_completed'].mean():.1f}")
+    logger.info("")
     
-    print(f"Winning Simulations: {winning_simulations} ({winning_simulations/NUM_SIMULATIONS*100:.1f}%)")
-    print(f"Losing Simulations: {losing_simulations} ({losing_simulations/NUM_SIMULATIONS*100:.1f}%)")
-    print(f"Break-even Simulations: {breakeven_simulations} ({breakeven_simulations/NUM_SIMULATIONS*100:.1f}%)")
-    print()
+    logger.info(f"Winning Simulations: {winning_simulations} ({winning_simulations/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"Losing Simulations: {losing_simulations} ({losing_simulations/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"Break-even Simulations: {breakeven_simulations} ({breakeven_simulations/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info("")
     
-    print(f"Best Result: ${max_profit:.2f} (Simulation #{best_sim['simulation']}, {best_sim['spins_completed']} spins)")
-    print(f"Worst Result: ${max_loss:.2f} (Simulation #{worst_sim['simulation']}, {worst_sim['spins_completed']} spins)")
-    print()
+    logger.info(f"Best Result: ${max_profit:.2f} (Simulation #{best_sim['simulation']}, {best_sim['spins_completed']} spins)")
+    logger.info(f"Worst Result: ${max_loss:.2f} (Simulation #{worst_sim['simulation']}, {worst_sim['spins_completed']} spins)")
+    logger.info("")
     
-    print("Stop Reasons:")
-    print(f"  - Completed all {SPINS_PER_SIMULATION} spins: {completed_all_spins} ({completed_all_spins/NUM_SIMULATIONS*100:.1f}%)")
-    print(f"  - Reached minimum bet (${MIN_BET}): {min_bet_reached} ({min_bet_reached/NUM_SIMULATIONS*100:.1f}%)")
-    print(f"  - Reached maximum bet (${MAX_BET}): {max_bet_reached} ({max_bet_reached/NUM_SIMULATIONS*100:.1f}%)")
-    print(f"  - Bankruptcy (insufficient funds): {bankruptcies} ({bankruptcies/NUM_SIMULATIONS*100:.1f}%)")
-    print()
+    logger.info("Stop Reasons:")
+    logger.info(f"  - Completed all {SPINS_PER_SIMULATION} spins: {completed_all_spins} ({completed_all_spins/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"  - Reached minimum bet (${MIN_BET}): {min_bet_reached} ({min_bet_reached/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"  - Reached maximum bet (${MAX_BET}): {max_bet_reached} ({max_bet_reached/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info(f"  - Bankruptcy (insufficient funds): {bankruptcies} ({bankruptcies/NUM_SIMULATIONS*100:.1f}%)")
+    logger.info("")
     
     # Profit/Loss Distribution
-    print("Profit/Loss Distribution:")
+    logger.info("Profit/Loss Distribution:")
     ranges = [
         (-float('inf'), -500, "< -$500"),
         (-500, -200, "-$500 to -$200"),
@@ -823,12 +845,14 @@ def run_simulation():
         if count > 0:
             percentage = count / NUM_SIMULATIONS * 100
             bar = '█' * int(percentage / 2)
-            print(f"  {label:20s}: {count:4d} ({percentage:5.1f}%) {bar}")
-    
+            
+            message = f"  {label:20s}: {count:4d} ({percentage:5.1f}%)"
+            print(f"{message} {bar}")
+            logger.info(message)
 
     
     stats = roulette.get_statistics()
-    print(f"Zero count: {stats['zero_count']}")
+    logger.info(f"Zero count: {stats['zero_count']}")
     return results
 
 
