@@ -490,13 +490,12 @@ ADJUSTMENT_TABLE = [
     (14.00, 22.00, 2.00),
     (24.00, 44.00, 4.00),]
 
-ADJUSTMENT_TABLE = [
-    # min, max, adjustment
-    (0.20, 3.80, 0.20),
-    (4.00, 7.60, 0.40),
-    (8.00, 12.50, 0.50),
-    
-    ]
+# ADJUSTMENT_TABLE = [
+#     # min, max, adjustment
+#     (0.20, 3.80, 0.20),
+#     (4.00, 7.60, 0.40),
+#     (8.00, 12.50, 0.50),
+#     ]
 
 BET_ZERO_TABLE = [
     # bet, bet on zero
@@ -615,20 +614,38 @@ def run_simulation():
     def get_next_color_bet(spins:int, new_bet_tuple: Tuple[BetType, float, List[int]], roulette: FrenchRouletteEmulator) -> Tuple[BetType, float, List[int]]:
         c_bet_color = new_bet_tuple[0]
         if c_bet_color == BetType.RED: # red is over shooting
-            if spins >= 10 and roulette.get_red_black_ratio() >= SWITCH_RATIO:
+            if spins >= 12 and roulette.get_red_black_ratio() >= SWITCH_RATIO:
                 new_bet_tuple = (BetType.BLACK, new_bet_tuple[1], []) 
                 logger.info(f"Sim {sim_num} Switching bet to BLACK due to Red dominance at spin {spins}.")
                 sim_switch_track.append(sim_num + 1)
                 return  new_bet_tuple
 
         if c_bet_color == BetType.BLACK: # black is over shooting
-            if spins >= 10 and roulette.get_black_red_ratio() >= SWITCH_RATIO:
+            if spins >= 12 and roulette.get_black_red_ratio() >= SWITCH_RATIO:
                 new_bet_tuple = (BetType.RED, new_bet_tuple[1], []) 
                 logger.info(f"Sim {sim_num} Switching bet to RED due to Black dominance at spin {spins}.")
                 sim_switch_track.append(sim_num + 1)
                 return  new_bet_tuple
             
         return new_bet_tuple
+
+    def min_bet_reached_switch_color(spins:int, bet_color, bet_amount) -> Tuple[BetType, float, List[int]] | None:
+
+        if bet_color == BetType.RED: # red is over shooting
+            if spins < 12 :
+                new_bet_tuple = (BetType.BLACK, bet_amount, []) 
+                logger.info(f"Sim {sim_num} Switching bet to BLACK at spin {spins}. Reached Min too fast")
+                sim_switch_track.append(sim_num + 1)
+                return  new_bet_tuple
+
+        if bet_color == BetType.BLACK: # black is over shooting
+            if spins < 12 :
+                new_bet_tuple = (BetType.RED, bet_amount, []) 
+                logger.info(f"Sim {sim_num} Switching bet to RED at spin {spins}. Reached Min too fast")
+                sim_switch_track.append(sim_num + 1)
+                return  new_bet_tuple
+
+        return None
 
     logger.info("=== Roulette Betting Strategy Simulation ===")
     logger.info(f"Running {NUM_SIMULATIONS} simulations...")
@@ -640,6 +657,9 @@ def run_simulation():
     logger.info(f"  - Bet limits: ${MIN_BET:.2f} - ${MAX_BET:.2f}")
 
     using_random_org = False
+
+
+
     for sim_num in range(NUM_SIMULATIONS):
         import time
         current_sec = int(time.time())  # Get current time in microseconds
@@ -706,10 +726,15 @@ def run_simulation():
                         spin + 1, result, profit, current_bet_amount, bankroll))
                 # Check if bet reached minimum
                 if current_bet_amount <= MIN_BET:
-                    current_bet_amount = MIN_BET
-                    stop_reason = "min_bet"
-                    min_bet_reached += 1
-                    break
+                    new_bets = min_bet_reached_switch_color(spin, bets[0][0] ,STARTING_BET)
+                    if new_bets is None:
+                        stop_reason = "min_bet"
+                        min_bet_reached += 1
+                        break
+                    else:
+                        new_bet_amount = STARTING_BET
+                        bets = [new_bets]
+
             else:  # Lost (includes La Partage on zero)
                 new_bet_amount = get_bet_increase(current_bet_amount)
                 current_bet_amount = round(new_bet_amount, 2)
@@ -757,6 +782,9 @@ def run_simulation():
             logger.info(f"Completed {sim_num + 1}/{NUM_SIMULATIONS} simulations...")
         logger.info(f"======> {stop_reason}")
         # end of simulation loop
+        if roulette.history is not None:
+            result2 = ",".join(str(n) for n in roulette.history)
+            logger.info(f"history: {result2}")
         logger.info("-" * 120)
 
     sim_switch_track = list(set(sim_switch_track))
